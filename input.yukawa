@@ -1,0 +1,36 @@
+&light
+N_light		2700
+n_light		9.0e24
+Gamma_light 	-9.0
+m_light		2.0141
+Z_light         1.0
+&light
+
+&heavy
+N_heavy		300
+n_heavy 	1.0e24
+Gamma_heavy 	0.0
+m_heavy		39.948
+Z_heavy         18.0
+&heavy
+
+&evolution
+dt	        0.01
+M_timeSteps     30000
+M_snapShots     10
+M_eqlb 		5000
+M_preDIH	500
+&evolution
+
+&electron
+kappa		-1.0
+quantumMode	1
+&electron
+ 
+&options
+initMode        0
+finalMode       2
+thermostat 	-1
+&options
+
+&end
