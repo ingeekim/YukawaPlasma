@@ -1,48 +1,61 @@
 //
 // A YukawaPlasma class implementation
-//   calculates the radial distributio functions
+//   calculates the diffusion coefficients
 //
 // In-Gee Kim   August, 2015
 //
-// Separated from postEvolve(), Nov 25, 2015
+// Separated from postEvolve() Nov 25, 2015
+//
 
-// Private header
+// Private headers
 #include "YukawaPlasma.h"
+#include "AutoCorrelations.h"
 
-void YukawaPlasma::rad_dist(ofstream &logFile)
+void YukawaPlasma::calcDiffusion(ofstream &logFile)
 {
     //
-    // YukawaPlasma class member function rad_dist()
+    // calculate and save the velocity auto-correlation functions
     //
 
-    const unsigned long M_steps = (M_timeSteps / M_snapShots);
-    
-    // save the radial distribution functions after normalization
-    ofstream rdfFile("rdf.out", ios::out);
 
-    double x_ll = ((double) N_light) / (edgeL * edgeL * edgeL);
-    x_ll *= dr * ((double) N_light) * ((double) M_steps);
-    double x_hh = ((double) N_heavy) / (edgeL * edgeL * edgeL);
-    x_hh *= dr * ((double) N_heavy) * ((double) M_steps);
-    double x_lh = ((double) N_light) / (edgeL * edgeL * edgeL);
-    x_lh *= dr * ((double) N_heavy) * ((double) M_steps);
-    double r = 0.0;
-    double v0 = 0.0;
-    for (unsigned long i = 0; i < R_bins; i++) {
-        r = (((double) i) + half) * dr;
-        v0 = fourPi * (r * r + r * dr + oneThird * dr * dr);
-        g_ll[i] /= (v0 * x_ll);
-        g_hh[i] /= (v0 * x_hh);
-        g_lh[i] /= (2.0 * v0 * x_lh);
+    // declare an object of AutoCorrelations
+    AutoCorrelations autoCorr(N_samples, idxEnsemble,
+                              M_timeSteps, M_snapShots, N_particles);
+    autoCorr.setSpecies(N_light, N_heavy, x_h, x_l);
+    double t_s = (dt * ((double) M_snapShots));
+    autoCorr.setUnits(t_s, a_l, w_l);
 
-        rdfFile << right << fixed << setw(15) << setprecision(9)
-                << r << " "
-                << scientific << setw(24) << setprecision(15)
-                << g_ll[i] << " " << g_hh[i] << " " << g_lh[i] << endl;
-    }
+    // read the velocity data
+    autoCorr.readVelocities();
 
-    rdfFile.close();
+    // calculating the current density
+    autoCorr.setCurrents();
+    logFile << "Calculating velocity auto-correlation functions..." << endl;
 
-    logFile << "The radial distribution functions are saved" << endl;
+    // calculating the autocorrelation functions
+    autoCorr.calcAutoCorr();
+    logFile << "Autocorrelation functions are calculated." << endl;
 
-} // end of YukawaPlasma::postEvolve()
+    // accumulate the autocorrelation functions
+    autoCorr.accAutoCorr();
+    logFile << "Autocorrelation functions are accumulated." << endl;
+
+    // average the autocorrelation functions
+    autoCorr.avgAutoCorr();
+    logFile << "Autocorrelation functions are averaged." << endl;
+
+    // save the averaged autocorrelation functions
+    autoCorr.savAutoCorr();
+    logFile << "The velocity auto-correlation functions are saved." << endl;
+
+    // check the statistical fitness
+    int isFit = 0;
+    isFit = autoCorr.chkStatFit(logFile);
+
+    // calculate the diffusion coefficients in Darken rule
+    autoCorr.getDarken(logFile);
+
+    // calculate the inter-diffusion coefficient D^0_12
+    autoCorr.getFick(logFile);
+
+} // end of YukawaPlasma::calcDiffusion()
